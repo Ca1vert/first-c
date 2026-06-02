@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📋 每日打卡</title>
+<style>
+  :root {
+    --bg: #0f0f1a;
+    --card: #1a1a2e;
+    --accent: #6c63ff;
+    --accent-glow: #8b83ff;
+    --success: #4ade80;
+    --warning: #fbbf24;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --danger: #f87171;
+    --border: #2d2d4a;
+    --radius: 20px;
+    --radius-sm: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    overflow-x: hidden;
+  }
+
+  /* 背景装饰 */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at 50% 0%, rgba(108, 99, 255, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(74, 222, 128, 0.04) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    width: 420px;
+    padding: 20px;
+  }
+
+  /* ===== 时钟卡片 ===== */
+  .clock-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 36px 32px 28px;
+    text-align: center;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .clock-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 20px; right: 20px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.6;
+  }
+
+  .time-display {
+    font-size: 64px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    background: linear-gradient(180deg, #f0f0ff 0%, #a5a5d0 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-variant-numeric: tabular-nums;
+    font-family: 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace;
+  }
+
+  .seconds {
+    font-size: 28px;
+    font-weight: 400;
+    opacity: 0.7;
+    vertical-align: super;
+    margin-left: 2px;
+  }
+
+  .date-display {
+    font-size: 16px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    letter-spacing: 1px;
+  }
+
+  .weekday {
+    display: inline-block;
+    background: rgba(108, 99, 255, 0.15);
+    color: var(--accent-glow);
+    padding: 3px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    margin-left: 8px;
+    font-weight: 500;
+  }
+
+  /* ===== 打卡卡片 ===== */
+  .checkin-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  .checkin-status {
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+
+  .checkin-status .done {
+    color: var(--success);
+    font-weight: 600;
+  }
+
+  .checkin-btn {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    background: rgba(108, 99, 255, 0.08);
+    color: var(--accent-glow);
+    font-size: 22px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    letter-spacing: 2px;
+    font-family: inherit;
+  }
+
+  .checkin-btn:hover:not(:disabled) {
+    background: rgba(108, 99, 255, 0.18);
+    border-color: var(--accent-glow);
+    box-shadow: 0 0 40px rgba(108, 99, 255, 0.25);
+    transform: scale(1.04);
+  }
+
+  .checkin-btn:active:not(:disabled) {
+    transform: scale(0.96);
+  }
+
+  .checkin-btn:disabled {
+    border-color: var(--success);
+    background: rgba(74, 222, 128, 0.1);
+    color: var(--success);
+    cursor: default;
+    animation: pulse-done 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-done {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.2); }
+    50% { box-shadow: 0 0 0 18px rgba(74, 222, 128, 0); }
+  }
+
+  .checkin-icon {
+    font-size: 42px;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .checkin-time {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 8px;
+  }
+
+  /* ===== 统计卡片 ===== */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px 12px;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent-glow);
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* ===== 历史列表 ===== */
+  .history-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+
+  .history-card::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .history-card::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .history-card::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+  }
+
+  .history-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .history-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .history-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(45, 45, 74, 0.5);
+    font-size: 13px;
+  }
+
+  .history-item:last-child {
+    border-bottom: none;
+  }
+
+  .history-date {
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .history-date .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    flex-shrink: 0;
+  }
+
+  .history-time {
+    color: var(--text-dim);
+    font-family: 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace;
+  }
+
+  .empty-history {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 20px 0;
+  }
+
+  /* ===== 粒子动画 ===== */
+  .particle {
+    position: fixed;
+    pointer-events: none;
+    font-size: 20px;
+    z-index: 100;
+    animation: particle-up 1.2s ease-out forwards;
+  }
+
+  @keyframes particle-up {
+    0% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-120px) scale(0.3) rotate(30deg);
+    }
+  }
+
+  /* ===== Toast ===== */
+  .toast {
+    position: fixed;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--success);
+    color: #000;
+    font-weight: 600;
+    padding: 10px 28px;
+    border-radius: 30px;
+    font-size: 14px;
+    z-index: 200;
+    animation: toast-in 0.4s ease, toast-out 0.3s 1.8s ease forwards;
+    box-shadow: 0 8px 30px rgba(74, 222, 128, 0.3);
+  }
+
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+
+  @keyframes toast-out {
+    from { opacity: 1; }
+    to { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  }
+
+  /* 响应式 */
+  @media (max-width: 460px) {
+    .container {
+      width: 100%;
+      padding: 12px;
+    }
+    .time-display {
+      font-size: 48px;
+    }
+    .checkin-btn {
+      width: 110px;
+      height: 110px;
+      font-size: 18px;
+    }
+    .stats-row {
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .stat-value {
+      font-size: 22px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- 时钟 -->
+  <div class="clock-card">
+    <div class="time-display">
+      <span id="hours">00</span>:<span id="minutes">00</span><span class="seconds" id="seconds">00</span>
+    </div>
+    <div class="date-display">
+      <span id="dateText">----年--月--日</span>
+      <span class="weekday" id="weekday">周一</span>
+    </div>
+  </div>
+
+  <!-- 打卡按钮 -->
+  <div class="checkin-card">
+    <div class="checkin-status" id="checkinStatus">今天还没有打卡哦～</div>
+    <button class="checkin-btn" id="checkinBtn" onclick="doCheckin()">
+      <span class="checkin-icon">📌</span>
+      打卡
+    </button>
+    <div class="checkin-time" id="checkinTime"></div>
+  </div>
+
+  <!-- 统计 -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value" id="totalDays">0</div>
+      <div class="stat-label">累计打卡</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="streakDays">0</div>
+      <div class="stat-label">连续天数 🔥</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="monthDays">0</div>
+      <div class="stat-label">本月打卡</div>
+    </div>
+  </div>
+
+  <!-- 历史记录 -->
+  <div class="history-card">
+    <div class="history-title">📅 打卡记录</div>
+    <div id="historyList">
+      <div class="empty-history">还没有打卡记录<br>点击按钮开始吧！</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ==================== 数据管理 ====================
+const STORAGE_KEY = 'daily_checkin_data';
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return { records: {} }; // { 'YYYY-MM-DD': 'HH:MM:SS' }
+}
+
+function saveData(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+let appData = loadData();
+
+// ==================== 日期工具 ====================
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function formatDate(key) {
+  const [y, m, d] = key.split('-');
+  return `${y}年${m}月${d}日`;
+}
+
+function getWeekday(date) {
+  const days = ['周日','周一','周二','周三','周四','周五','周六'];
+  return days[date.getDay()];
+}
+
+// ==================== 打卡逻辑 ====================
+function doCheckin() {
+  const key = todayKey();
+  if (appData.records[key]) return; // 今天已打卡
+
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+
+  appData.records[key] = timeStr;
+  saveData(appData);
+
+  // 粒子动画
+  spawnParticles();
+
+  // Toast
+  showToast('✅ 打卡成功！今天真棒！');
+
+  // 更新UI
+  updateCheckinUI();
+  updateStats();
+  renderHistory();
+}
+
+function spawnParticles() {
+  const btn = document.getElementById('checkinBtn');
+  const rect = btn.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const emojis = ['✨','🎉','🌟','💪','🔥','⭐','🎯','💎'];
+
+  for (let i = 0; i < 12; i++) {
+    setTimeout(() => {
+      const particle = document.createElement('span');
+      particle.className = 'particle';
+      particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      particle.style.left = (cx + (Math.random() - 0.5) * 160) + 'px';
+      particle.style.top = (cy + (Math.random() - 0.5) * 60) + 'px';
+      particle.style.animationDuration = (0.8 + Math.random() * 1.0) + 's';
+      document.body.appendChild(particle);
+
+      setTimeout(() => particle.remove(), 1500);
+    }, i * 40);
+  }
+}
+
+function showToast(msg) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+
+  setTimeout(() => toast.remove(), 2200);
+}
+
+// ==================== UI 更新 ====================
+function updateClock() {
+  const now = new Date();
+  document.getElementById('hours').textContent = String(now.getHours()).padStart(2,'0');
+  document.getElementById('minutes').textContent = String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('seconds').textContent = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('dateText').textContent = `${now.getFullYear()}年${String(now.getMonth()+1).padStart(2,'0')}月${String(now.getDate()).padStart(2,'0')}日`;
+  document.getElementById('weekday').textContent = getWeekday(now);
+}
+
+function updateCheckinUI() {
+  const key = todayKey();
+  const btn = document.getElementById('checkinBtn');
+  const status = document.getElementById('checkinStatus');
+  const timeEl = document.getElementById('checkinTime');
+
+  if (appData.records[key]) {
+    btn.disabled = true;
+    btn.querySelector('.checkin-icon').textContent = '✅';
+    status.innerHTML = '<span class="done">🎊 今日已完成打卡</span>';
+    timeEl.textContent = `打卡时间：${appData.records[key]}`;
+  } else {
+    btn.disabled = false;
+    btn.querySelector('.checkin-icon').textContent = '📌';
+    status.textContent = '今天还没有打卡哦～';
+    timeEl.textContent = '';
+  }
+}
+
+function updateStats() {
+  const today = new Date();
+  const todayKeyStr = todayKey();
+  const records = appData.records;
+  const keys = Object.keys(records).sort();
+
+  // 累计打卡
+  const total = keys.length;
+
+  // 连续天数
+  let streak = 0;
+  const checkDate = new Date(today);
+  // 如果今天还没打卡，从昨天开始检查
+  if (!records[todayKeyStr]) {
+    checkDate.setDate(checkDate.getDate() - 1);
+  }
+  while (true) {
+    const key = `${checkDate.getFullYear()}-${String(checkDate.getMonth()+1).padStart(2,'0')}-${String(checkDate.getDate()).padStart(2,'0')}`;
+    if (records[key]) {
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  // 本月打卡
+  const thisMonth = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  const monthDays = keys.filter(k => k.startsWith(thisMonth)).length;
+
+  document.getElementById('totalDays').textContent = total;
+  document.getElementById('streakDays').textContent = streak;
+  document.getElementById('monthDays').textContent = monthDays;
+}
+
+function renderHistory() {
+  const container = document.getElementById('historyList');
+  const keys = Object.keys(appData.records).sort().reverse();
+
+  if (keys.length === 0) {
+    container.innerHTML = '<div class="empty-history">还没有打卡记录<br>点击按钮开始吧！</div>';
+    return;
+  }
+
+  container.innerHTML = keys.slice(0, 50).map(key => `
+    <div class="history-item">
+      <span class="history-date">
+        <span class="dot"></span>
+        ${formatDate(key)}
+      </span>
+      <span class="history-time">${appData.records[key]}</span>
+    </div>
+  `).join('');
+}
+
+// ==================== 初始化 ====================
+function init() {
+  updateClock();
+  updateCheckinUI();
+  updateStats();
+  renderHistory();
+
+  // 每秒更新时钟
+  setInterval(updateClock, 1000);
+
+  // 每分钟检查日期是否变化（跨天重置）
+  setInterval(() => {
+    updateCheckinUI();
+    updateStats();
+    renderHistory();
+  }, 60000);
+}
+
+// 页面加载时，如果今天还没打卡且已经过了凌晨，刷新界面
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    updateCheckinUI();
+    updateStats();
+    renderHistory();
+  }
+});
+
+init();
+</script>
+
+</body>
+</html>

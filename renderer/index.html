@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📋 每日打卡</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+
+  <!-- 时钟 -->
+  <div class="clock-card">
+    <div class="time-display">
+      <span id="hours">00</span>:<span id="minutes">00</span><span class="seconds" id="seconds">00</span>
+    </div>
+    <div class="date-display">
+      <span id="dateText">----年--月--日</span>
+      <span class="weekday" id="weekday">周一</span>
+    </div>
+  </div>
+
+  <!-- 打卡按钮 -->
+  <div class="checkin-card">
+    <div class="checkin-status" id="checkinStatus">今天还没有打卡哦～</div>
+    <button class="checkin-btn" id="checkinBtn" onclick="doCheckin()">
+      <span class="checkin-icon">📌</span>
+      打卡
+    </button>
+    <div class="checkin-time" id="checkinTime"></div>
+  </div>
+
+  <!-- 统计 -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value" id="totalDays">0</div>
+      <div class="stat-label">累计打卡</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="streakDays">0</div>
+      <div class="stat-label">连续天数 🔥</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="monthDays">0</div>
+      <div class="stat-label">本月打卡</div>
+    </div>
+  </div>
+
+  <!-- 历史记录 -->
+  <div class="history-card">
+    <div class="history-title">📅 打卡记录</div>
+    <div id="historyList">
+      <div class="empty-history">还没有打卡记录<br>点击按钮开始吧！</div>
+    </div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
