@@ -1,31 +1,39 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
 // ==================== 数据文件管理 ====================
 const dataFilePath = path.join(app.getPath('userData'), 'checkin-data.json');
+const dataDir = path.dirname(dataFilePath);
+
+let dataCache = null; // 内存缓存，避免重复 I/O
 
 function readData() {
+  if (dataCache) return dataCache;
   try {
     if (fs.existsSync(dataFilePath)) {
-      return JSON.parse(fs.readFileSync(dataFilePath, 'utf-8'));
+      dataCache = JSON.parse(fs.readFileSync(dataFilePath, 'utf-8'));
+      return dataCache;
     }
   } catch (e) {
     console.error('读取数据文件失败:', e);
   }
-  return { records: {} };
+  dataCache = { records: {} };
+  return dataCache;
 }
 
 function writeData(data) {
-  const dir = path.dirname(dataFilePath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  // 原子写入：先写临时文件，再重命名
+  dataCache = data;
   const tmpPath = dataFilePath + '.tmp';
+  fs.mkdirSync(dataDir, { recursive: true });
   fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
   fs.renameSync(tmpPath, dataFilePath);
 }
+
+// ==================== 全局状态 ====================
+let mainWindow = null;
+let tray = null;
+let isQuitting = false;
 
 // ==================== 单实例锁 ====================
 const gotLock = app.requestSingleInstanceLock();
@@ -33,18 +41,17 @@ if (!gotLock) {
   app.quit();
 } else {
   app.on('second-instance', () => {
-    // 第二个实例启动时，聚焦已有窗口
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
-    }
+    showAndFocusWindow();
   });
 }
 
-// ==================== 全局引用 ====================
-let mainWindow = null;
-let tray = null;
+// ==================== 窗口辅助 ====================
+function showAndFocusWindow() {
+  if (!mainWindow) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
 
 // ==================== 创建窗口 ====================
 function createWindow() {
@@ -70,9 +77,9 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
-  // ===== 关闭窗口 → 隐藏到托盘 =====
+  // 关闭窗口 → 隐藏到托盘
   mainWindow.on('close', (event) => {
-    if (!app.isQuitting) {
+    if (!isQuitting) {
       event.preventDefault();
       mainWindow.hide();
     }
@@ -80,8 +87,18 @@ function createWindow() {
 }
 
 // ==================== 系统托盘 ====================
+
+// 预计算托盘图标 data URL（静态资源，仅需生成一次）
+const TRAY_ICON_DATA_URL = (() => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">
+    <circle cx="16" cy="16" r="14" fill="#6c63ff"/>
+    <path d="M9 16l5 5 9-9" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+})();
+
 function createTray() {
-  const icon = createTrayIconPNG();
+  const icon = nativeImage.createFromDataURL(TRAY_ICON_DATA_URL);
 
   tray = new Tray(icon);
   tray.setToolTip('每日打卡');
@@ -89,18 +106,13 @@ function createTray() {
   const contextMenu = Menu.buildFromTemplate([
     {
       label: '显示主窗口',
-      click: () => {
-        if (mainWindow) {
-          mainWindow.show();
-          mainWindow.focus();
-        }
-      },
+      click: () => showAndFocusWindow(),
     },
     { type: 'separator' },
     {
       label: '退出',
       click: () => {
-        app.isQuitting = true;
+        isQuitting = true;
         app.quit();
       },
     },
@@ -110,26 +122,13 @@ function createTray() {
 
   // 左键点击托盘图标 → 切换窗口显示/隐藏
   tray.on('click', () => {
-    if (mainWindow) {
-      if (mainWindow.isVisible()) {
-        mainWindow.hide();
-      } else {
-        mainWindow.show();
-        mainWindow.focus();
-      }
+    if (!mainWindow) return;
+    if (mainWindow.isVisible()) {
+      mainWindow.hide();
+    } else {
+      showAndFocusWindow();
     }
   });
-}
-
-// 生成托盘图标（紫色圆形 + 白色勾，SVG → nativeImage）
-function createTrayIconPNG() {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">
-    <circle cx="16" cy="16" r="14" fill="#6c63ff"/>
-    <path d="M9 16l5 5 9-9" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>`;
-  return nativeImage.createFromDataURL(
-    `data:image/svg+xml,${encodeURIComponent(svg)}`
-  );
 }
 
 // ==================== IPC 处理 ====================
@@ -154,17 +153,10 @@ app.whenReady().then(() => {
   });
 });
 
-app.on('window-all-closed', () => {
-  // Windows 上不退出，留在托盘
-});
-
 app.on('before-quit', () => {
-  // 确保退出时销毁托盘图标
+  isQuitting = true;
   if (tray) {
     tray.destroy();
     tray = null;
   }
 });
-
-// app.isQuitting 标记，用于区分"关闭窗口"和"退出应用"
-app.isQuitting = false;
